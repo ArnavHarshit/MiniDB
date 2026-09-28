@@ -1,0 +1,22 @@
+#pragma once
+
+#include "table/table_factory_interface.h"
+#include "storage/ephemeral/ephemeral_table.h"
+#include <memory>
+#include <shared_mutex>
+#include <string_view>
+#include <unordered_map>
+
+class EphemeralTableFactory : public ITableFactory {
+public:
+    EphemeralTableFactory() = default;
+
+    bool TableExists(std::string_view table_name) const override;
+    bool CreateTable(std::string_view table_name) override;
+    std::shared_ptr<Table> GetTable(std::string_view table_name) override;
+    bool DeleteTable(std::string_view table_name) override;
+
+private:
+    mutable std::shared_mutex registry_mutex_m;
+    std::unordered_map<std::string, std::shared_ptr<EphemeralTable>> tables_m;
+};

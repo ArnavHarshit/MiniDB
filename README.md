@@ -1,0 +1,227 @@
+<pre>
+                                                      _.-````'-,_
+                                            _,.,_ ,-'`           `'-.,_
+                                          /)     (\                   '``-.
+                                         ((      ) )                      `\
+Y88b   d88P    d88888888888b. 888888b.    \)    (_/                        )\
+ Y88b d88P    d88888888  "Y88b888  "88b    |       /)           '    ,'    / \
+  Y88o88P    d88P888888    888888  .88P    `\    ^'            '     (    /  ))
+   Y888P    d88P 888888    8888888888K.      |      _/\ ,     /    ,,`\   (  "`
+    888    d88P  888888    888888  "Y88b      \Y,   |  \  \  | ````| / \_ \
+    888   d88P   888888    888888    888        `)_/    \  \  )    ( >  ( >
+    888  d8888888888888  .d88P888   d88P                 \( \(     |/   |/
+    888 d88P     8888888888P" 8888888P"                 /_(/_(    /_(  /_(
+</pre>
+
+MiniDB is a SQL database written in modern C++, built from scratch as an
+educational project. MiniDB is focused on being simple, functional, and correct. As a result,
+performance and scalability are intentionally *not* the top priorities—clarity
+and educational value come first.
+
+> **⚠️ DISCLAIMER**: MiniDB is in **very early stages** of development. Many features are incomplete,
+> unstable, or missing entirely. This is an educational project and should not be used for
+> production purposes. Expect bugs, breaking changes, and incomplete functionality.
+
+---
+
+## Contents
+
+- [Blog Series](#blog-series)
+- [Building](#building)
+- [Usage](#usage)
+- [Architecture](#architecture)
+- [Supported SQL Syntax](#supported-sql-syntax)
+- [Roadmap](#roadmap)
+
+---
+
+## Blog Series
+
+While I'm building MiniDB, I figured that it would be a good exercise to document
+my progress and share some of the design decisions I made along the way.
+You can check out the blog [here](https://www.erichayter.com/minidb-docs/).
+
+| Date | Post |
+|------|------|
+| 14/03/2026 | [dev/3: liftoff](https://www.erichayter.com/minidb-docs/dev/2026/03/14/liftoff.html) |
+| 11/09/2025 | [dev/2: no tests, no failures](https://www.erichayter.com/minidb-docs/dev/2025/09/11/no-tests-no-failures.html) |
+| 15/06/2025 | [dev/1: Page Buffer Manager and Asynchronous Disk I/O in MiniDB](https://www.erichayter.com/minidb-docs/dev/2025/06/15/page-buffer-manager-and-async-disk-io.html) |
+| 02/06/2025 | [Database Internals: Page Buffers](https://www.erichayter.com/minidb-docs/meta/2025/06/02/page-buffer.html) |
+| 29/05/2025 | [dev/0: Hello, World!](https://www.erichayter.com/minidb-docs/dev/2025/05/29/hello-world.html) |
+
+---
+
+## Building
+
+1. Clone the repository and submodules:
+```bash
+git clone --recursive https://github.com/EricHayter/minidb
+```
+
+2. Build using CMake:
+```bash
+cd minidb
+mkdir build
+cd build
+cmake ..
+cmake --build .
+```
+
+---
+
+## Usage
+
+After building, you can run the MiniDB shell:
+
+```bash
+# From the build/ directory
+./src/shell/minidb-shell
+```
+
+### Demo
+
+Here's a quick demo of what MiniDB can currently do:
+
+```sql
+-- Create a table
+CREATE TABLE users (name TEXT, age INTEGER);
+
+-- Insert some data
+INSERT INTO users VALUES (Alice, 30);
+INSERT INTO users VALUES (Bob, 25);
+INSERT INTO users VALUES (Charlie, 35);
+
+-- Query the data
+SELECT * FROM users;
+```
+
+**Output:**
+```
+┌─────────┬─────┐
+│ name    │ age │
+├─────────┼─────┤
+│ Alice   │ 30  │
+│ Bob     │ 25  │
+│ Charlie │ 35  │
+└─────────┴─────┘
+3 rows in set
+```
+
+You can also select specific columns:
+
+```sql
+SELECT name FROM users;
+```
+
+### Running Tests
+
+Tests can be built and run for individual components:
+
+```bash
+# From the build/ directory
+cmake --build . --target test
+```
+
+---
+
+## Architecture
+
+![System Architecture](docs/export/system-architecture.png)
+
+MiniDB is organized into distinct layers handling parsing, query execution, storage, and result formatting. The diagram above shows the high-level architecture and relationships between major components:
+
+- **SQL Parsing Layer**: Lexer and Parser (Flex/Bison) tokenize and parse SQL into an AST
+- **Executor**: Dispatches SQL statements to appropriate handlers
+- **Core Components**: Optimizer (iterator pipeline), Catalog (schema management), Table Manager, and Serialization
+- **Iterator Pipeline**: Volcano-style query execution with FileScan, Selection, and Projection iterators
+- **Storage Layer**: In-memory tables (default) and B+ tree infrastructure with disk management, buffering, and slotted page format
+
+> **Note:** For more detailed information about specific components, check the README files in the respective subdirectories (e.g., `src/optimizer/README.md`).
+
+---
+
+## Supported SQL Syntax
+
+MiniDB currently supports a subset of SQL. Here's what you can use:
+
+### CREATE TABLE
+
+```sql
+CREATE TABLE table_name (
+    column1 TYPE,
+    column2 TYPE,
+    ...
+);
+```
+
+**Supported Types:**
+- `INTEGER` - 32-bit signed integer
+- `TEXT` - Variable-length string
+
+**Example:**
+```sql
+CREATE TABLE users (name TEXT, age INTEGER);
+```
+
+### INSERT
+
+```sql
+INSERT INTO table_name VALUES (value1, value2, ...);
+```
+
+**Notes:**
+- Values must match the column order and types from the table definition
+- TEXT values do not require quotes
+
+**Example:**
+```sql
+INSERT INTO users VALUES (Alice, 30);
+```
+
+### SELECT
+
+```sql
+SELECT column1, column2, ... FROM table_name [WHERE condition];
+SELECT * FROM table_name [WHERE condition];
+```
+
+**Supported WHERE operators:**
+- `=` - Equality
+- `!=` - Inequality
+- `<` - Less than
+- `>` - Greater than
+- `<=` - Less than or equal
+- `>=` - Greater than or equal
+
+**Examples:**
+```sql
+SELECT * FROM users;
+SELECT name FROM users;
+SELECT name, age FROM users WHERE age > 25;
+SELECT * FROM users WHERE name = Alice;
+```
+
+---
+
+## Roadmap
+
+- [x] Set up blog
+- [x] Implement disk manager
+- [x] Implement disk scheduler
+- [x] Implement page buffer
+- [x] Implement slotted page interface
+- [x] Implement lexer and parser for SQL subset
+- [x] Implement shell interface
+- [x] Implement basic executor with type-safe operations
+- [x] Implement result printer with formatted table output
+- [ ] Implement optimizer
+  - [x] Basic iterator-based query execution (Volcano model)
+  - [x] FileScanIterator and ProjectionIterator
+  - [x] SelectionIterator (WHERE clause filtering)
+  - [ ] JoinIterator
+  - [ ] Implement external sorting
+  - [ ] Cost-based optimization
+- [ ] Implement B+ tree storage engine
+- [ ] Add transaction support
+- [ ] Add concurrency control
+

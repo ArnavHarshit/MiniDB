@@ -1,0 +1,12 @@
+.cache
+build
+CMakeFiles
+.tofix
+CLAUDE.md
+Testing
+todo
+
+# DrawIO backup and temporary files
+*.drawio.bkp
+*.drawio.dtmp
+.~$*.drawio

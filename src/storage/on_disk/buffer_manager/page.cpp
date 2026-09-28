@@ -1,0 +1,83 @@
+#include "storage/on_disk/buffer_manager/page.h"
+#include "core/shared_spinlock.h"
+#include "storage/on_disk/buffer_manager/frame.h"
+#include "storage/on_disk/buffer_manager/page_buffer_manager.h"
+
+Page::~Page()
+{
+    if (page_buffer_manager_m)
+        page_buffer_manager_m->RemoveAccessor(frame_m->fp_id);
+}
+
+Page::Page(PageBufferManager* page_buffer_manager, Frame* frame)
+    : page_buffer_manager_m { page_buffer_manager }
+    , frame_m { frame }
+{
+}
+
+Page::Page(Page&& other)
+    : page_buffer_manager_m { other.page_buffer_manager_m }
+    , frame_m { other.frame_m }
+{
+    other.frame_m = nullptr;
+    other.page_buffer_manager_m = nullptr;
+}
+
+Page& Page::operator=(Page&& other)
+{
+    if (&other != this) {
+        frame_m = other.frame_m;
+        other.frame_m = nullptr;
+        page_buffer_manager_m = other.page_buffer_manager_m;
+        other.page_buffer_manager_m = nullptr;
+    }
+    return *this;
+}
+
+void Page::lock()
+{
+    frame_m->mut.lock();
+}
+
+bool Page::try_lock()
+{
+    return frame_m->mut.try_lock();
+}
+
+void Page::unlock()
+{
+    frame_m->mut.unlock();
+}
+
+void Page::lock_shared()
+{
+    frame_m->mut.lock_shared();
+}
+
+bool Page::try_lock_shared()
+{
+    return frame_m->mut.try_lock_shared();
+}
+
+void Page::unlock_shared()
+{
+    frame_m->mut.unlock_shared();
+}
+
+MutFullPage Page::GetMutView() const
+{
+    // Handing out a mutable view means the page is about to be written, so mark
+    // the frame dirty; otherwise eviction would silently drop the changes.
+    frame_m->is_dirty.store(true, std::memory_order_release);
+    return frame_m->data;
+}
+
+FullPage Page::GetView() const
+{
+    return frame_m->data;
+}
+
+file_page_id_t Page::GetFilePageId() const
+{
+    return frame_m->fp_id;
+}

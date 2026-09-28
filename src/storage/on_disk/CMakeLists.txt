@@ -1,0 +1,34 @@
+# Unified on-disk storage engine library
+add_library(minidb_storage_on_disk
+    # Disk I/O
+    disk/disk_manager.cpp
+
+    # Buffer management
+    buffer_manager/page.cpp
+    buffer_manager/frame.cpp
+    buffer_manager/lru_k_replacer.cpp
+    buffer_manager/page_buffer_manager.cpp
+
+    # Page format
+    page/page_format.cpp
+    page/checksum.cpp
+
+    # Table implementation
+    table/disk_table.cpp
+    table/disk_table_factory.cpp
+    table/disk_table_iterator.cpp
+
+    # Heap Files
+    heap/heap_page.cpp
+)
+
+target_include_directories(minidb_storage_on_disk
+    PUBLIC ${CMAKE_SOURCE_DIR}/include
+)
+
+target_link_libraries(minidb_storage_on_disk
+    PUBLIC minidb_table
+    PRIVATE minidb_core
+    INTERFACE lib_compile_flags
+    INTERFACE lib_strict_warnings
+)

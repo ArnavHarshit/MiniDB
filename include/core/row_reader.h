@@ -1,0 +1,57 @@
+#pragma once
+
+#include "catalog/catalog.h"
+#include "common/definitions.h"
+#include "core/assert.h"
+#include <cstring>
+#include <format>
+
+class RowReader {
+public:
+    RowReader(std::span<const std::byte> data, const Schema& schema);
+
+    template <DataType T>
+    type_for<T> Get(std::size_t pos);
+
+    // TODO maybe create an iterator for more efficient reading if there's lots
+    // of variable length types in the row. Not super high priority I don't
+    // think it will have a massive difference.
+
+    std::size_t NumValues() const { return schema_m.size(); }
+
+    // Low-level accessors for efficient field copying (e.g., in projection)
+    std::size_t GetOffset(std::size_t pos);
+    std::size_t GetSize(std::size_t pos);
+    std::span<const std::byte> GetRawData() const { return data_m; }
+
+private:
+    // Calculates the offset of the pos inside of the row based on the schema
+    // information.
+    std::size_t CalculateOffset(size_t pos);
+
+    const Schema& schema_m;
+    std::span<const std::byte> data_m;
+};
+
+template <DataType T>
+type_for<T> RowReader::Get(std::size_t pos)
+{
+    MiniDB_ASSERT(T == schema_m[pos].type,
+        std::format("Popped type does not conform with schema. Expected: {}, Actual: {}",
+            ToString(T),
+            ToString(schema_m[pos].type))
+            .c_str());
+
+    std::size_t offset = CalculateOffset(pos);
+
+    if constexpr (T == DataType::INTEGER) {
+        type_for<T> popped;
+        std::memcpy(&popped, data_m.data() + offset, sizeof(popped));
+        return popped;
+    } else if constexpr (T == DataType::TEXT) {
+        string_length_t str_len;
+        std::memcpy(&str_len, data_m.data() + offset, sizeof(string_length_t));
+        offset += sizeof(string_length_t);
+        return std::string(reinterpret_cast<const char*>(data_m.data() + offset), str_len);
+    }
+}
